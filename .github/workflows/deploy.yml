@@ -24,16 +24,21 @@ jobs:
             echo "[CI] Updating system (if needed)..."
             command -v python3 || (sudo apt update && sudo apt install -y python3)
             command -v pip3 || (sudo apt install -y python3-pip)
+            command -v rsync || (sudo apt install -y rsync)  # Встановлюємо rsync, якщо його немає
 
             echo "[CI] Installing Jupyter and dependencies..."
             pip3 install --user notebook pandas numpy matplotlib
 
             echo "[CI] Creating directory for notebooks..."
             mkdir -p ~/notebooks
+            chmod -R 755 ~/notebooks  # Переконуємося, що права доступу дозволяють читання/запис
 
             echo "[CI] Copying notebook files to server..."
-            # Копіюємо файли з репозиторію на сервер
+            # Копіюємо файли з репозиторію в ~/notebooks
             rsync -av --delete ./ ${{ secrets.DROPLET_USER }}@${{ secrets.IP }}:~/notebooks/
+
+            echo "[CI] Verifying copied files..."
+            ls -la ~/notebooks  # Перевіряємо, чи файли скопіювалися
 
             echo "[CI] Killing old Jupyter if exists..."
             pkill -f "jupyter-notebook" || true
@@ -45,7 +50,13 @@ jobs:
               --no-browser \
               --NotebookApp.token='' \
               --NotebookApp.password='' \
-              --notebook-dir=~/notebooks > jupyter.log 2>&1 &
+              --notebook-dir=~/notebooks > ~/jupyter.log 2>&1 &
+
+            echo "[CI] Waiting for Jupyter to start..."
+            sleep 5  # Даємо Jupyter час запуститися
+
+            echo "[CI] Checking Jupyter process..."
+            ps aux | grep jupyter  # Перевіряємо, чи Jupyter запущений
 
             echo "[CI] Jupyter started on port 8888"
           EOF
