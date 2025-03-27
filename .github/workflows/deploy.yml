@@ -25,8 +25,15 @@ jobs:
             command -v python3 || (sudo apt update && sudo apt install -y python3)
             command -v pip3 || (sudo apt install -y python3-pip)
 
-            echo "[CI] Installing Jupyter..."
+            echo "[CI] Installing Jupyter and dependencies..."
             pip3 install --user notebook pandas numpy matplotlib
+
+            echo "[CI] Creating directory for notebooks..."
+            mkdir -p ~/notebooks
+
+            echo "[CI] Copying notebook files to server..."
+            # Копіюємо файли з репозиторію на сервер
+            rsync -av --delete ./ ${{ secrets.DROPLET_USER }}@${{ secrets.IP }}:~/notebooks/
 
             echo "[CI] Killing old Jupyter if exists..."
             pkill -f "jupyter-notebook" || true
@@ -38,7 +45,7 @@ jobs:
               --no-browser \
               --NotebookApp.token='' \
               --NotebookApp.password='' \
-              --notebook-dir=~ > jupyter.log 2>&1 &
+              --notebook-dir=~/notebooks > jupyter.log 2>&1 &
 
             echo "[CI] Jupyter started on port 8888"
           EOF
